@@ -1,0 +1,5 @@
+/template/assets/icebreak.mp4
+/dist/
+*.tmp
+Thumbs.db
+.DS_Store

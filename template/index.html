@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>deepseek harness</title>
+<style>
+  :root { color-scheme: dark; background: #000; }
+  * { box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #000; }
+  body { display: grid; place-items: center; }
+  #picture { display: block; width: 100%; height: 100%; object-fit: contain; background: #000; }
+  #film { position: absolute; width: 1px; height: 1px; pointer-events: none; }
+</style>
+</head>
+<body>
+<template id="media-payload"><!-- ICEBREAK_MEDIA_BASE64 --></template>
+<video id="film" playsinline preload="auto" disablepictureinpicture aria-hidden="true"></video>
+<canvas id="picture" width="1920" height="804" aria-label="deepseek harness 冰川启动动画"></canvas>
+<script>
+(() => {
+  'use strict';
+  const film = document.getElementById('film');
+  const picture = document.getElementById('picture');
+  const context = picture.getContext('2d', { alpha: false });
+  const state = { renderer: 'canvas', frames: 0, time: 0, status: 'loading', mutedFallback: false, error: '' };
+  Object.defineProperty(window, '__ICEBREAK_PLAYER__', { value: state });
+  let finished = false;
+  let frameRequest = 0;
+  let animationRequest = 0;
+  let started = false;
+  let lastProgress = performance.now();
+  let previousTime = -1;
+  let mediaUrl = '';
+  const firstFrameDeadline = setTimeout(() => finish('load-timeout'), 15000);
+  const totalDeadline = setTimeout(() => finish('playback-timeout'), 55000);
+  const stallWatch = setInterval(() => {
+    if (started && performance.now() - lastProgress > 14000) finish('stalled');
+  }, 1000);
+
+  function finish(reason) {
+    if (finished) return;
+    finished = true;
+    state.status = reason;
+    clearTimeout(firstFrameDeadline);
+    clearTimeout(totalDeadline);
+    clearInterval(stallWatch);
+    if (frameRequest && film.cancelVideoFrameCallback) film.cancelVideoFrameCallback(frameRequest);
+    cancelAnimationFrame(animationRequest);
+    film.pause();
+    film.removeAttribute('src');
+    film.load();
+    if (mediaUrl) URL.revokeObjectURL(mediaUrl);
+    parent.postMessage({ type: reason === 'skip' ? 'dsh-startup-skip' : 'dsh-startup-done', reason }, '*');
+  }
+
+  function draw() {
+    if (finished || film.readyState < 2 || !film.videoWidth) return;
+    try {
+      // Never clear between frames: a delayed decode keeps the previous picture.
+      context.drawImage(film, 0, 0, picture.width, picture.height);
+      state.frames += 1;
+      state.time = film.currentTime;
+      if (film.currentTime !== previousTime) {
+        previousTime = film.currentTime;
+        lastProgress = performance.now();
+      }
+    } catch (error) {
+      state.error = String(error.message || error);
+      finish('render-error');
+    }
+  }
+
+  function nextFrame() {
+    if (finished) return;
+    if (film.requestVideoFrameCallback) {
+      frameRequest = film.requestVideoFrameCallback(() => { draw(); nextFrame(); });
+    } else {
+      animationRequest = requestAnimationFrame(() => { draw(); nextFrame(); });
+    }
+  }
+
+  async function start() {
+    if (started || finished || film.readyState < 2) return;
+    started = true;
+    clearTimeout(firstFrameDeadline);
+    lastProgress = performance.now();
+    draw();
+    nextFrame();
+    try {
+      await film.play();
+    } catch (error) {
+      // Browsers may require a gesture for sound; the film can still play silently.
+      if (error.name !== 'NotAllowedError') { state.error = error.message; finish('play-error'); return; }
+      film.muted = true;
+      state.mutedFallback = true;
+      try { await film.play(); } catch (fallbackError) {
+        state.error = fallbackError.message;
+        finish('play-error');
+        return;
+      }
+    }
+    if (!finished) state.status = 'playing';
+  }
+
+  film.addEventListener('loadeddata', start);
+  film.addEventListener('canplay', start);
+  film.addEventListener('ended', () => finish('ended'));
+  film.addEventListener('error', () => {
+    state.error = film.error ? 'media-error-' + film.error.code : 'media-error';
+    finish('media-error');
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') { event.preventDefault(); finish('skip'); }
+  });
+  window.addEventListener('pagehide', () => finish('disposed'), { once: true });
+  film.volume = 0.8;
+  const payloadElement = document.getElementById('media-payload');
+  let payload = payloadElement.content.textContent.trim();
+  payloadElement.remove();
+  if (payload.length > 100) {
+    // The installed player is self-contained: sandboxed desktop frames need no subrequests.
+    const parts = [];
+    for (let offset = 0; offset < payload.length; offset += 32768) {
+      const binary = atob(payload.slice(offset, offset + 32768));
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+      parts.push(bytes);
+    }
+    mediaUrl = URL.createObjectURL(new Blob(parts, { type: 'video/mp4' }));
+    payload = '';
+    state.source = 'embedded';
+    film.src = mediaUrl;
+  } else {
+    state.source = 'file';
+    film.src = 'assets/icebreak.mp4';
+  }
+  film.load();
+})();
+</script>
+</body>
+</html>

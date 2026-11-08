@@ -1,0 +1,28 @@
+{
+  "id": "deepseek-harness-icebreak",
+  "name": "冰川航拍 · deepseek harness",
+  "version": "1.2.0",
+  "kind": "dsh-boot-suite-template",
+  "requires": {
+    "dsh-boot-suite": ">=2.16.7"
+  },
+  "media": {
+    "file": "template/assets/icebreak.mp4",
+    "durationSeconds": 23,
+    "width": 1920,
+    "height": 804,
+    "framesPerSecond": 30,
+    "audio": "stereo"
+  },
+  "typography": {
+    "family": "Rajdhani",
+    "weight": 400,
+    "text": "deepseek harness"
+  },
+  "source": {
+    "author": "Florian Delée",
+    "url": "https://www.pexels.com/video/breathtaking-aerial-view-of-majestic-glacier-35146420/",
+    "license": "https://www.pexels.com/license/"
+  },
+  "mediaSha256": "1c0229fc574f4a7701fcebf213ae3e061ce3a877863cde3422d481ca73390731"
+}

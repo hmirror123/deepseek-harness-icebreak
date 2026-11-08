@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "deepseek-harness-icebreak",
+  "name": "冰川航拍 · deepseek harness",
+  "version": "1.2.0",
+  "description": "4K 冰川实拍剪辑，连续航拍、Rajdhani 字标与低音铜管标题音效，独立稳定播放器，1920×804、30 fps、23 秒。",
+  "engine": "iframe",
+  "entry": "index.html",
+  "duration": 23,
+  "theme": {
+    "mode": "dark",
+    "bg": "#070b10",
+    "ink": "#eef3f6",
+    "accent": "#e9a168"
+  },
+  "tags": ["cinematic", "glacier", "live-action", "video", "stable-player"]
+}
